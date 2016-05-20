@@ -149,32 +149,50 @@ function	roundproperway($total)//проверка на три знака пос�
 		return false;
 	}
 }
-function getKv()
+function get_dates_of_quarter($quarter = 'current', $year = null, $format = null)
 {
-	$kv = intval((date('m') + 2)/3);
-	$kv1["kvartal"]=$kv;
-	$kv1["year"]=intval(date('Y'));
-	return $kv1;
-}
-function getQuarterInterval($quarter, $year = NULL)
-{
-	if (!$year)
-	{
-		$year = date('Y');
-	}
-	$start = array();
-	$end = array();
-	$start['year'] = $year;
-	$start['month'] = ($quarter-1)*3 + 1;
-	$start['day'] = 1;
-	$end['year'] = $year;
-	$end['month'] = ($quarter)*3;
-	$end['day'] = cal_days_in_month(CAL_GREGORIAN, ($quarter)*3, $year);
-	return array
-	(
-		date_format(date_create(implode('-', $start)),'d.m.Y'),
-		date_format(date_create(implode('-', $end)),'d.m.Y'),
-	);
+    if ( !is_int($year) ) {        
+       $year = (new DateTime)->format('Y');
+    }
+    $current_quarter = ceil((new DateTime)->format('n') / 3);
+    switch (  strtolower($quarter) ) {
+    case 'this':
+    case 'current':
+       $quarter = ceil((new DateTime)->format('n') / 3);
+       break;
+
+    case 'previous':
+       $year = (new DateTime)->format('Y');
+       if ($current_quarter == 1) {
+          $quarter = 4;
+          $year--;
+        } else {
+          $quarter =  $current_quarter - 1;
+        }
+        break;
+
+    case 'first':
+        $quarter = 1;
+        break;
+
+    case 'last':
+        $quarter = 4;
+        break;
+
+    default:
+        $quarter = (!is_int($quarter) || $quarter < 1 || $quarter > 4) ? $current_quarter : $quarter;
+        break;
+    }
+    if ( $quarter === 'this' ) {
+        $quarter = ceil((new DateTime)->format('n') / 3);
+    }
+    $start = new DateTime($year.'-'.(3*$quarter-2).'-1 00:00:00');
+    $end = new DateTime($year.'-'.(3*$quarter).'-'.($quarter == 1 || $quarter == 4 ? 31 : 30) .' 23:59:59');
+
+    return array(
+        'start' => $format ? $start->format($format) : $start,
+        'end' => $format ? $end->format($format) : $end,
+    );
 }
 ?>
 <?//---------------------------init values of variables--------------------------------------?>
@@ -206,22 +224,18 @@ if($_SERVER["REQUEST_METHOD"] == "GET")
 	{
 		switch ($_GET["form_madness_period"]) 
 		{
-			case 'lastmonth': 
-				$begin=date(/*$DB->DateFormatToPHP(CLang::GetDateFormat("SHORT"))*/'d.m.Y', strtotime('-31 day'));
-				$end=date('d.m.Y');
-			break;
 			case 'lastqarter': 
-				$lastKvartal=getKv();
-				list($begin,$end) = getQuarterInterval(intval($lastKvartal["kvartal"]), intval($lastKvartal["year"]));
+				$temp=get_dates_of_quarter('previous',null,'U');
+				$begin=$temp["start"];
+				$end=$temp["end"];
 			break;
 			case 'lastyear':
-				$begin=date($DB->DateFormatToPHP(CLang::GetDateFormat("SHORT")), strtotime('-365 day'));
-				$end=date('d.m.Y');
+				$begin = strtotime('1/1 previous year');
+				$end = strtotime('12/31 previous year');
 			break;
 			default:
-				$lastKvartal=getKv();
-				$begin=date(/*$DB->DateFormatToPHP(CLang::GetDateFormat("SHORT"))*/'d.m.Y', strtotime('-31 day'));
-				$end=date('d.m.Y');
+				$begin = strtotime('first day of previous month');
+				$end = strtotime('last day of previous month');
 				break;
 		}
 		if($_GET["region_name"]=="select_all_regions"||$_GET["region_name"]=='')
@@ -266,20 +280,26 @@ if ($arData1 = $rsData1->fetch())
 	}
 }
 ?>
+<?//date($DB->DateFormatToPHP(CLang::GetDateFormat("SHORT")), mktime(0,0,0,1,1,2003))?>
 <?// загружаем ранее созданые отчеты
-$arSelect =array("NAME", "ACTIVE", "ID","IBLOCK_ID");
+$arSelect =array("NAME", "ACTIVE", "ID","IBLOCK_ID","DATE_ACTIVE_FROM");
 //задаем условия выборки
+// MakeTimeStamp($date2, 'DD.MM.YYYY HH:MI:SS')
 $arrFilter=Array
 (
 		"IBLOCK_ID"=>$FORM_IBLOCK_ID,
 		"PROPERTY_REGION"=>$regionfilter,
-		// ">=PROPERTY_MONTH"  => date($DB->DateFormatToPHP(CSite::GetDateFormat("FULL")), $begin),
-		// "<=PROPERTY_MONTH"  => date($DB->DateFormatToPHP(CSite::GetDateFormat("FULL")), $end),
+		array
+		(
+		"LOGIC" => "AND",
+        array( ">=DATE_ACTIVE_FROM"=>date($DB->DateFormatToPHP(CLang::GetDateFormat("SHORT")), $begin)),
+        array( "<=DATE_ACTIVE_FROM"=>date($DB->DateFormatToPHP(CLang::GetDateFormat("SHORT")), $end)),
+    )
 );
 
 //задаем условия групировки
 $arGroupBy=false;
-$res = CIBlockElement::GetList(Array("PROPERTY_MONTH"=>'DESC'), $arrFilter,$arGroupBy,false, $arSelect);
+$res = CIBlockElement::GetList(Array("DATE_ACTIVE_FROM"=>'DESC'), $arrFilter,$arGroupBy,false, $arSelect);
 while($ob = $res->GetNextElement())
 { 
 	$arFields = $ob->GetFields();
@@ -291,14 +311,16 @@ while($ob = $res->GetNextElement())
 	{ 
 		// $arResult["ROWS_COUNT"]=count($arResult["ITEMS"]);
 		foreach ($value as $key1 => $value1) 
-		{
-			$region=$value["REGION"]["VALUE"];
+		{	
+			$tempmonth=explode('.', $value["DATE_ACTIVE_FROM"]);
+			$region=$value["REGION"]["VALUE"].$tempmonth[1];
 			switch ($key1) 
 			{
 				case 'NAME'://unset not neded values
 				case '~NAME':
-				case 'DATE_ACTIVE_FROM':
+				case 'ACTIVE_FROM':
 				case '~DATE_ACTIVE_FROM':
+				case '~ACTIVE_FROM':
 				case 'ACTIVE':
 				case '~ACTIVE':
 				case 'ID':
@@ -308,17 +330,23 @@ while($ob = $res->GetNextElement())
 				case 'DATE_REPORT':
 				case '~DATE_REPORT':
 				case '~COMPANY':
-				case 'PROPERTY_MONTH_VALUE_ID':
-				case '~PROPERTY_MONTH_VALUE_ID':
-				case 'PROPERTY_MONTH_VALUE':
-				case '~PROPERTY_MONTH_VALUE':
 				// unset($arResult["ITEMS"][$key][$key1]);
 					break;
+				case 'DATE_ACTIVE_FROM':
+					if ($regiontriger)
+					{
+						$arTOTAL[$region][$key1]=$value1;
+					}
+					else
+					{
+						$arTOTAL[$key][$key1]=$value1;
+					}
+				break;
 				case 'REGION':
 					if ($regiontriger)
 					{
 						$arUniqueRegion[$value1["VALUE"]]=$arResult['madnessregions'][$value1["VALUE"]]["UF_NAME"];
-						$arTOTAL[$value1["VALUE"]][$key1]=$arResult['madnessregions'][$value1["VALUE"]]["UF_NAME"];
+						$arTOTAL[$region][$key1]=$arResult['madnessregions'][$value1["VALUE"]]["UF_NAME"];
 					}
 					else
 					{
@@ -375,7 +403,7 @@ while($ob = $res->GetNextElement())
 	{
 		foreach ($value as $key1 => $value1) 
 		{
-			if($key1=="COMPANY"||$key1=="REGION"||$key1=="MONTH"||$key1=="SETTLEMENTS")
+			if($key1=="COMPANY"||$key1=="REGION"||$key1=="SETTLEMENTS"||$key1=="DATE_ACTIVE_FROM")
 			{
 				$arTOTAL["ALL_REGIONS"][$key1]='';
 			}
@@ -411,14 +439,16 @@ $arUniqueCompany=array_unique($arUniqueCompany);
 					<?}?>
 				</select></br>
 				<?if ($_GET["form_madness_period"]=='lastmonth'||strlen($_GET["form_madness_period"])<=0){echo '<strong>';}?>
-				<a href="<?=$dir?>filter_form_madness.php?form_madness_period=lastmonth&amp;region_name=<?=$_GET["region_name"]?>" id="lmh">за месяц </a>
+				<a href="<?=$dir?>filter_form_madness.php?form_madness_period=lastmonth&amp;region_name=<?=$_GET["region_name"]?>" id="lmh">за прошлый месяц </a>
 				<?if ($_GET["form_madness_period"]=='lastmonth'||strlen($_GET["form_madness_period"])<=0){echo '</strong>';}?>
 				<?if ($_GET["form_madness_period"]=='lastqarter'){echo '<strong>';}?>
-				<a href="<?=$dir?>filter_form_madness.php?form_madness_period=lastqarter&amp;region_name=<?=$_GET["region_name"]?>" id="lkh">за квартал </a>
+				<a href="<?=$dir?>filter_form_madness.php?form_madness_period=lastqarter&amp;region_name=<?=$_GET["region_name"]?>" id="lkh">за прошлый квартал </a>
 				<?if ($_GET["form_madness_period"]=='lastqarter'){echo '</strong>';}?>
 				<?if ($_GET["form_madness_period"]=='lastyear'){echo '<strong>';}?>
-				<a href="<?=$dir?>filter_form_madness.php?form_madness_period=lastyear&amp;region_name=<?=$_GET["region_name"]?>" id="lyh">за год </a></br>
+				<a href="<?=$dir?>filter_form_madness.php?form_madness_period=lastyear&amp;region_name=<?=$_GET["region_name"]?>" id="lyh">за прошлый год </a></br>
 				<?if ($_GET["form_madness_period"]=='lastyear'){echo '</strong>';}?>
+				выбраный период</br>
+				от: <strong><?=date('d-m-Y',$begin);?></strong> до:<strong><?=date('d-m-Y',$end);?></strong>
 			</center>
 		</div>
 <div id="container_table">
@@ -428,7 +458,7 @@ $arUniqueCompany=array_unique($arUniqueCompany);
 		    <th class="classth" rowspan="3">Наименование района</th>
 		    <th class="classth" rowspan="3">Количество населенных пунктов</th>
 		    <?if (!$regiontriger)
-			{?>
+				{?>
 		    	<th class="classth" rowspan="3">Наименование компании</th>
 		    <?}?>
 		    <th class="classth" colspan="3">Имеется животных</th>
@@ -452,7 +482,7 @@ $arUniqueCompany=array_unique($arUniqueCompany);
 		    <td class="classth" rowspan="2">Совместных рейдов</td>
 		    <td class="classth" rowspan="2">бесед</td>
 		    <td class="classth" rowspan="2">составлено предписаний</td>
-		    <td class="classth" rowspan="2">2составлено протоколов</td>
+		    <td class="classth" rowspan="2">составлено протоколов</td>
 		    <td class="classth" rowspan="2">оштрафовано лиц</td>
 		    <td class="classth" rowspan="2">на сумму  руб.</td>
 		  </tr>
@@ -469,25 +499,37 @@ $arUniqueCompany=array_unique($arUniqueCompany);
 		</thead>
 		<tbody class="classtbody">
 			<?$prevMonth='';
-			$prevYear='';?>
-			<?foreach ($arTOTAL as $key => $value)
+			$prevYear='';
+			foreach ($arTOTAL as $key => $value)
 			{
-				$prevYear=$currYear;
-				$prevMonth=$currMonth;
-				$currMonth=date("m",strtotime($value["MONTH"]));
-				$currYear=date("Y",strtotime($value["MONTH"]));
-				if (intval($prevMonth)!=intval($currMonth)||intval($prevYear)!=intval($currYear))
+				if($key=="ALL_REGIONS"&&$key!="0")
+				{?>
+					<tr class="classtr">
+						<td class="classtd" colspan="23">
+							 <?echo "ИТОГО: ";?>
+						</td>
+					</tr>
+				<?}
+				else
+				{
+					$prevYear=$currYear;
+					$prevMonth=$currMonth;
+					$currMonth=date("m",strtotime($value["DATE_ACTIVE_FROM"]));
+					$currYear=date("Y",strtotime($value["DATE_ACTIVE_FROM"]));
+					if (intval($prevMonth)!=intval($currMonth)
+						||intval($prevYear)!=intval($currYear))
 					{?>
 						<tr class="classtr">
 							<td class="classtd" colspan="23">
-								 <?echo $monthesRUS[intval($currMonth)].' '.$currYear.' г.';?>
+								<?echo $monthesRUS[intval($currMonth)].' '.$currYear.' г.';?>
 							</td>
 						</tr>
-					<?}?>
+					<?};
+				}?>
 				<tr class="classtr">
 					<?foreach ($value as $key2 => $value2) 
 					{
-						if($key2!='MONTH')
+						if($key2!='DATE_ACTIVE_FROM')
 						{?>
 							<td class="classtd"><?=$value2;?></td>
 						<?}
