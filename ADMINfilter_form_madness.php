@@ -75,7 +75,6 @@ $('#company_select').change(
 		$('#lyh').attr("href","<?=$dir?>filter_form_madness.php?form_madness_period=lastyear&region_name="+$(this).val());
 	}
 );
-
 function printtext(text)
 	{
 		var tableToPrint=document.getElementById("table_4_print");
@@ -197,6 +196,42 @@ function get_dates_of_quarter($quarter = 'current', $year = null, $format = null
 ?>
 <?//---------------------------init values of variables--------------------------------------?>
 <?
+$MES["REGION_NAME"]="Наименование района";
+$MES["REGION_COUNT"]="Количество населенных пунктов";
+$MES["COMP_NAME"]="Наименование компании";
+$MES["PETS_COUNT"]="Имеется животных";
+$MES["VACZ_PRTS"]="Провакцинировано животных";
+$MES["MEASURES"]="Приняты меры";
+$MES["FOUNDATION"]="Выделено денежных средств из местного бюджета, руб.";
+$MES["SMI"]="Опубликовано информации в СМИ";
+$MES["PROVEDENO"]="Проведено";
+$MES["GOS_RABOTA"]="Госветинспекторсая работа";
+$MES["TOTAL"]="Всего";
+$MES["V_TOM_CHISLE"]="в том числе";
+$MES["PO_OTLOVU"]="по отлову";
+$MES["PO_OTSTRELU"]="по отстрелу";
+$MES["RADIO_TV"]="По радио/ теле-видение";
+$MES["LISTOVOK"]="листо-вок,памяток";
+$MES["IN_PRINT"]="В печати";
+$MES["REJDOV"]="Совместных рейдов";
+$MES["BESED"]="бесед";
+$MES["PREDPISANIJ"]="составлено предписаний";
+$MES["PROTOKOLOV"]="составлено протоколов";
+$MES["OSHTRAF"]="оштрафовано лиц";
+$MES["NA_SUMMU"]="на сумму  руб.";
+$MES["CATS"]="Кошек";
+$MES["DOGS"]="Собак";
+$MES["LAST_M"]="за прошлый месяц ";
+$MES["LAST_Q"]="за прошлый квартал ";
+$MES["LAST_Y"]="за прошлый год ";
+$MES["SEL_PERIOD"]="выбраный период";
+$MES["FROM"]="от: ";
+$MES["TO"]=" до:";
+$MES["CHOOSE_REGION"]="Выберите район";
+$MES["ALL_REGIONS"]="Все районы";
+$MES["CANCEL_FILTRATION"]="отменить фильтрицию";
+$MES["ZAGOLOVOK"]="о проводимых мероприятиях по профилактике и ликвидации бешенства животных (собак,кошек) в населённых пунктах";
+$MES["INFO"]="Информация";
 $monthesRUS = array(
           1 => 'Январь', 2 => 'Февраль', 3 => 'Март', 4 => 'Апрель',
           5 => 'Май', 6 => 'Июнь', 7 => 'Июль', 8 => 'Август',
@@ -216,7 +251,6 @@ $arTOTAL=array();
 <?//подключаем модули
 CModule::IncludeModule("iblock");
 CModule::IncludeModule('highloadblock');?>
-
 <?//задаем период выборки
 if($_SERVER["REQUEST_METHOD"] == "GET")
 {
@@ -280,11 +314,9 @@ if ($arData1 = $rsData1->fetch())
 	}
 }
 ?>
-<?//date($DB->DateFormatToPHP(CLang::GetDateFormat("SHORT")), mktime(0,0,0,1,1,2003))?>
 <?// загружаем ранее созданые отчеты
-$arSelect =array("NAME", "ACTIVE", "ID","IBLOCK_ID","DATE_ACTIVE_FROM");
+$arSelect =array("NAME", "ACTIVE", "ID","IBLOCK_ID","DATE_ACTIVE_FROM","CREATED_BY");
 //задаем условия выборки
-// MakeTimeStamp($date2, 'DD.MM.YYYY HH:MI:SS')
 $arrFilter=Array
 (
 		"IBLOCK_ID"=>$FORM_IBLOCK_ID,
@@ -296,205 +328,311 @@ $arrFilter=Array
         array( "<=DATE_ACTIVE_FROM"=>date($DB->DateFormatToPHP(CLang::GetDateFormat("SHORT")), $end)),
     )
 );
-
 //задаем условия групировки
 $arGroupBy=false;
 $res = CIBlockElement::GetList(Array("DATE_ACTIVE_FROM"=>'DESC'), $arrFilter,$arGroupBy,false, $arSelect);
 while($ob = $res->GetNextElement())
 { 
 	$arFields = $ob->GetFields();
+	if(strlen($arFields["CREATED_BY"])>0&&!in_array($arFields["CREATED_BY"], $arResult["CREATED_BY"]))
+	{
+		$arResult["CREATED_BY"][]=$arFields["CREATED_BY"];
+	}
+	unset($arFields["CREATED_BY"]);
+	unset($arFields["~CREATED_BY"]);
 	$arPropsFirst = $ob->GetProperties();
 	$arResult["ITEMS"][]=$arFields+$arPropsFirst;
 }//while
-	//подгоняем значения под требуемый формат
-	foreach ($arResult["ITEMS"] as $key => $value) 
-	{ 
-		// $arResult["ROWS_COUNT"]=count($arResult["ITEMS"]);
-		foreach ($value as $key1 => $value1) 
-		{	
-			$tempmonth=explode('.', $value["DATE_ACTIVE_FROM"]);
-			$region=$value["REGION"]["VALUE"].$tempmonth[1];
-			switch ($key1) 
-			{
-				case 'NAME'://unset not neded values
-				case '~NAME':
-				case 'ACTIVE_FROM':
-				case '~DATE_ACTIVE_FROM':
-				case '~ACTIVE_FROM':
-				case 'ACTIVE':
-				case '~ACTIVE':
-				case 'ID':
-				case '~ID':
-				case 'IBLOCK_ID':
-				case '~IBLOCK_ID':
-				case 'DATE_REPORT':
-				case '~DATE_REPORT':
-				case '~COMPANY':
-				// unset($arResult["ITEMS"][$key][$key1]);
-					break;
-				case 'DATE_ACTIVE_FROM':
-					if ($regiontriger)
-					{
-						$arTOTAL[$region][$key1]=$value1;
-					}
-					else
-					{
-						$arTOTAL[$key][$key1]=$value1;
-					}
-				break;
-				case 'REGION':
-					if ($regiontriger)
-					{
-						$arUniqueRegion[$value1["VALUE"]]=$arResult['madnessregions'][$value1["VALUE"]]["UF_NAME"];
-						$arTOTAL[$region][$key1]=$arResult['madnessregions'][$value1["VALUE"]]["UF_NAME"];
-					}
-					else
-					{
-						$arTOTAL[$key][$key1]=$arResult['madnessregions'][$value1["VALUE"]]["UF_NAME"];
-					}
-				break;
-				case 'THEREIS_DOGS'://local total count
-				case 'THEREIS_CATS':
-					if ($regiontriger)
-					{
-						$arTOTAL[$region]["THEREIS_CATS+THEREIS_DOGS"]=0;
-						$arTOTAL[$region][$key1]=$arTOTAL[$region][$key1]+$value1["VALUE"];
-						$arTOTAL[$region]["THEREIS_CATS+THEREIS_DOGS"]=$arTOTAL[$region]["THEREIS_CATS"]+$arTOTAL[$region]["THEREIS_DOGS"];
-					}
-					else
-					{
-						$arTOTAL[$key]["THEREIS_TOTAL"]=0;
-						$arTOTAL[$key][$key1]=$value1["VALUE"];
-						$arTOTAL[$key]["THEREIS_TOTAL"]=intval($arTOTAL[$key]["THEREIS_CATS"])+intval($arTOTAL[$key]["THEREIS_DOGS"]);
-					}
-				break;
-				case 'VACCINATED_DOGS':
-				case 'VACCINATED_CATS'://local total count
-					if ($regiontriger)
-					{
-						$arTOTAL[$region]["VACCINATED_CATS+VACCINATED_DOGS"]=0;
-						$arTOTAL[$region][$key1]=$arTOTAL[$region][$key1]+$value1["VALUE"];
-						$arTOTAL[$region]["VACCINATED_CATS+VACCINATED_DOGS"]=$arTOTAL[$region]["VACCINATED_CATS"]+$arTOTAL[$region]["VACCINATED_DOGS"];
-					}
-					else
-					{
-						$arTOTAL[$key]["VACCINATED_TOTAL"]=0;
-						$arTOTAL[$key][$key1]=$value1["VALUE"];
-						$arTOTAL[$key]["VACCINATED_TOTAL"]=intval($arTOTAL[$key]["VACCINATED_CATS"])+intval($arTOTAL[$key]["VACCINATED_DOGS"]);
-					}
-				break;
-				default://total count
-					if ($regiontriger)
-					{
-						if (is_numeric($value1["VALUE"]))
-						{
-							$arTOTAL[$region][$key1]=$arTOTAL[$region][$key1]+$value1["VALUE"];
-						}
-					}
-					else
-					{
-						$arTOTAL[$key][$key1]=$value1["VALUE"];
-					}
-				break;
-			}
-		}
-	}
-	foreach ($arTOTAL as $key => $value) 
-	{
-		foreach ($value as $key1 => $value1) 
+//подгоняем значения под требуемый формат
+foreach ($arResult["ITEMS"] as $key => $value) 
+{ 
+	// $arResult["ROWS_COUNT"]=count($arResult["ITEMS"]);
+	foreach ($value as $key1 => $value1) 
+	{	
+		$tempmonth=explode('.', $value["DATE_ACTIVE_FROM"]);
+		$region=$value["REGION"]["VALUE"].$tempmonth[1];
+		switch ($key1) 
 		{
-			if($key1=="COMPANY"||$key1=="REGION"||$key1=="SETTLEMENTS"||$key1=="DATE_ACTIVE_FROM")
-			{
-				$arTOTAL["ALL_REGIONS"][$key1]='';
-			}
-			else
-			{
-				$arTOTAL["ALL_REGIONS"][$key1]=$arTOTAL["ALL_REGIONS"][$key1]+$value1;
-			}
+			case 'NAME'://unset not neded values
+			case '~NAME':
+			case 'ACTIVE_FROM':
+			case '~DATE_ACTIVE_FROM':
+			case '~ACTIVE_FROM':
+			case 'ACTIVE':
+			case '~ACTIVE':
+			case 'ID':
+			case '~ID':
+			case 'IBLOCK_ID':
+			case '~IBLOCK_ID':
+			case 'DATE_REPORT':
+			case '~DATE_REPORT':
+			case '~COMPANY':
+			// unset($arResult["ITEMS"][$key][$key1]);
+				break;
+			case 'DATE_ACTIVE_FROM':
+				if ($regiontriger)
+				{
+					$arTOTAL[$region][$key1]=$value1;
+				}
+				else
+				{
+					$arTOTAL[$key][$key1]=$value1;
+				};
+			break;
+			case 'REGION':
+				if ($regiontriger)
+				{
+					$arUniqueRegion[$value1["VALUE"]]=$arResult['madnessregions'][$value1["VALUE"]]["UF_NAME"];
+					$arTOTAL[$region][$key1]=$arResult['madnessregions'][$value1["VALUE"]]["UF_NAME"];
+				}
+				else
+				{
+					$arTOTAL[$key][$key1]=$arResult['madnessregions'][$value1["VALUE"]]["UF_NAME"];
+				};
+			break;
+			case 'THEREIS_DOGS'://local total count
+			case 'THEREIS_CATS':
+				if ($regiontriger)
+				{
+					$arTOTAL[$region]["THEREIS_CATS+THEREIS_DOGS"]=0;
+					$arTOTAL[$region][$key1]=$arTOTAL[$region][$key1]+$value1["VALUE"];
+					$arTOTAL[$region]["THEREIS_CATS+THEREIS_DOGS"]=$arTOTAL[$region]["THEREIS_CATS"]+$arTOTAL[$region]["THEREIS_DOGS"];
+				}
+				else
+				{
+					$arTOTAL[$key]["THEREIS_TOTAL"]=0;
+					$arTOTAL[$key][$key1]=$value1["VALUE"];
+					$arTOTAL[$key]["THEREIS_TOTAL"]=intval($arTOTAL[$key]["THEREIS_CATS"])+intval($arTOTAL[$key]["THEREIS_DOGS"]);
+				};
+			break;
+			case 'VACCINATED_DOGS':
+			case 'VACCINATED_CATS'://local total count
+				if ($regiontriger)
+				{
+					$arTOTAL[$region]["VACCINATED_CATS+VACCINATED_DOGS"]=0;
+					$arTOTAL[$region][$key1]=$arTOTAL[$region][$key1]+$value1["VALUE"];
+					$arTOTAL[$region]["VACCINATED_CATS+VACCINATED_DOGS"]=$arTOTAL[$region]["VACCINATED_CATS"]+$arTOTAL[$region]["VACCINATED_DOGS"];
+				}
+				else
+				{
+					$arTOTAL[$key]["VACCINATED_TOTAL"]=0;
+					$arTOTAL[$key][$key1]=$value1["VALUE"];
+					$arTOTAL[$key]["VACCINATED_TOTAL"]=intval($arTOTAL[$key]["VACCINATED_CATS"])+intval($arTOTAL[$key]["VACCINATED_DOGS"]);
+				};
+			break;
+			default://total count
+				if ($regiontriger)
+				{
+					if (is_numeric($value1["VALUE"]))
+					{
+						$arTOTAL[$region][$key1]=$arTOTAL[$region][$key1]+$value1["VALUE"];
+					};
+				}
+				else
+				{
+					$arTOTAL[$key][$key1]=$value1["VALUE"];
+				};
+			break;
+		};
+	};
+};
+foreach ($arTOTAL as $key => $value) 
+{
+	foreach ($value as $key1 => $value1) 
+	{
+		if($key1=="COMPANY"||$key1=="REGION"||$key1=="SETTLEMENTS"||$key1=="DATE_ACTIVE_FROM")
+		{
+			$arTOTAL["ALL_REGIONS"][$key1]='';
+		}
+		else
+		{
+			$arTOTAL["ALL_REGIONS"][$key1]=$arTOTAL["ALL_REGIONS"][$key1]+$value1;
 		}
 	}
+}
 foreach ($arResult['madnessregions'] as $key => $value) 
 {
 	$arUniqueRegion[$value["UF_XML_ID"]]=$value["UF_NAME"];
 }
-
 $arUniqueRegion=array_unique($arUniqueRegion);
 $arUniqueCompany=array_unique($arUniqueCompany);
+//готовим файл к експорту
+//шапка
+$arCSV=array();
+$arCSV['UF_OFFICE'][1]=iconv('utf-8', 'windows-1251',$arResult['madnessregions'][$regionfilter]["UF_OFFICE"]);
+$arCSV['UF_USER'][1]=iconv('utf-8', 'windows-1251',$arResult['madnessregions'][$regionfilter]["UF_USER"]);
+$arCSV['INFO'][1]=iconv('utf-8', 'windows-1251',$MES["INFO"]);
+$arCSV['ZAGOLOVOK'][1]=iconv('utf-8', 'windows-1251',$MES["ZAGOLOVOK"]);
+$prevMonth='';
+$prevYear='';
+$temp=array('firstrow','secondrow','thirdrow');
+foreach ($temp as $key => $row) 
+{
+	for ($col=0; $col < 22; $col++) 
+	{ 
+	 $arCSV[$row][$col]='';
+	}
+}
+//shift
+$shift=0;
+if (!$regiontriger)
+{
+	$shift=1;
+	$arCSV["firstrow"][2]=iconv('utf-8', 'windows-1251',$MES["COMP_NAME"]);
+}
+$arCSV['firstrow'][0]=iconv('utf-8', 'windows-1251',$MES["REGION_NAME"]);
+$arCSV['firstrow'][1]=iconv('utf-8', 'windows-1251',$MES["REGION_COUNT"]);
+$arCSV['firstrow'][2+$shift]=iconv('utf-8', 'windows-1251',$MES["PETS_COUNT"]);
+$arCSV['firstrow'][5+$shift]=iconv('utf-8', 'windows-1251',$MES["VACZ_PRTS"]);
+$arCSV['firstrow'][8+$shift]=iconv('utf-8', 'windows-1251',$MES["MEASURES"]);
+$arCSV['firstrow'][12+$shift]=iconv('utf-8', 'windows-1251',$MES["FOUNDATION"]);
+$arCSV['firstrow'][13+$shift]=iconv('utf-8', 'windows-1251',$MES["SMI"]);
+$arCSV['firstrow'][16+$shift]=iconv('utf-8', 'windows-1251',$MES["PROVEDENO"]);
+$arCSV['firstrow'][18+$shift]=iconv('utf-8', 'windows-1251',$MES["GOS_RABOTA"]);
+$arCSV['secondrow'][2+$shift]=iconv('utf-8', 'windows-1251',$MES["TOTAL"]);
+$arCSV['secondrow'][3+$shift]=iconv('utf-8', 'windows-1251',$MES["V_TOM_CHISLE"]);
+$arCSV['secondrow'][5+$shift]=iconv('utf-8', 'windows-1251',$MES["TOTAL"]);
+$arCSV['secondrow'][6+$shift]=iconv('utf-8', 'windows-1251',$MES["V_TOM_CHISLE"]);
+$arCSV['secondrow'][8+$shift]=iconv('utf-8', 'windows-1251',$MES["PO_OTLOVU"]);
+$arCSV['secondrow'][10+$shift]=iconv('utf-8', 'windows-1251',$MES["PO_OTSTRELU"]);
+$arCSV['secondrow'][13+$shift]=iconv('utf-8', 'windows-1251',$MES["RADIO_TV"]);
+$arCSV['secondrow'][14+$shift]=iconv('utf-8', 'windows-1251',$MES["LISTOVOK"]);
+$arCSV['secondrow'][15+$shift]=iconv('utf-8', 'windows-1251',$MES["IN_PRINT"]);
+$arCSV['secondrow'][16+$shift]=iconv('utf-8', 'windows-1251',$MES["REJDOV"]);
+$arCSV['secondrow'][17+$shift]=iconv('utf-8', 'windows-1251',$MES["BESED"]);
+$arCSV['secondrow'][18+$shift]=iconv('utf-8', 'windows-1251',$MES["PREDPISANIJ"]);
+$arCSV['secondrow'][19+$shift]=iconv('utf-8', 'windows-1251',$MES["PROTOKOLOV"]);
+$arCSV['secondrow'][20+$shift]=iconv('utf-8', 'windows-1251',$MES["OSHTRAF"]);
+$arCSV['secondrow'][21+$shift]=iconv('utf-8', 'windows-1251',$MES["NA_SUMMU"]);
+$arCSV['thirdrow'][3+$shift]=iconv('utf-8', 'windows-1251',$MES["CATS"]);
+$arCSV['thirdrow'][4+$shift]=iconv('utf-8', 'windows-1251',$MES["DOGS"]);
+$arCSV['thirdrow'][6+$shift]=iconv('utf-8', 'windows-1251',$MES["CATS"]);
+$arCSV['thirdrow'][7+$shift]=iconv('utf-8', 'windows-1251',$MES["DOGS"]);
+$arCSV['thirdrow'][8+$shift]=iconv('utf-8', 'windows-1251',$MES["CATS"]);
+$arCSV['thirdrow'][9+$shift]=iconv('utf-8', 'windows-1251',$MES["DOGS"]);
+$arCSV['thirdrow'][10+$shift]=iconv('utf-8', 'windows-1251',$MES["CATS"]);
+$arCSV['thirdrow'][11+$shift]=iconv('utf-8', 'windows-1251',$MES["DOGS"]);
+//тело
+foreach ($arTOTAL as $key => $value)
+{
+	foreach ($value as $key1 => $value1) 
+	{
+		if($key=="ALL_REGIONS"&&$key!="0")
+		{
+			$arCSV["TOTAL"]['1']=iconv('utf-8', 'windows-1251','ИТОГО:' );
+			if($key1!='DATE_ACTIVE_FROM')
+			{
+				$arCSV[$key][$key1]=iconv('utf-8', 'windows-1251', $value1);
+			}
+		}
+		else
+		{
+			$prevYear=$currYear;
+			$prevMonth=$currMonth;
+			$currMonth=date("m",strtotime($value["DATE_ACTIVE_FROM"]));
+			$currYear=date("Y",strtotime($value["DATE_ACTIVE_FROM"]));
+			if (intval($prevMonth)!=intval($currMonth)
+				||intval($prevYear)!=intval($currYear))
+			{
+			$arCSV[$value["DATE_ACTIVE_FROM"]]["1"]=iconv('utf-8', 'windows-1251',$monthesRUS[intval($currMonth)].' '.$currYear.' г.');
+			}
+			if($key1!='DATE_ACTIVE_FROM')
+			{
+				$arCSV[$key][$key1]=iconv('utf-8', 'windows-1251', $value1);
+			}
+		}
+	}
+}
+foreach ($arResult["CREATED_BY"] as $key => $value) 
+{
+	$rsUser = CUser::GetByID(intval($value));
+	$arUser = $rsUser->Fetch();
+	$arCSV["FOOTER"][]=iconv('utf-8', 'windows-1251',$arUser["NAME"]);
+	$arCSV["FOOTER2"][]=iconv('utf-8', 'windows-1251',$arUser["LAST_NAME"]);
+}
+//footer
+//записываем файл
+$file = $_SERVER['DOCUMENT_ROOT']."/upload/form_madness.csv";
+unlink($file);
+$fp = fopen($file, 'w');
+foreach($arCSV as $arItem)
+{
+	fputcsv($fp, $arItem, ';');
+}
+fclose($fp);
 ?>
 <?//---------------------------VISIBLE PART--------------------------------------?>
-<?
-?>
-<a href="<?=$dir?>filter_form_madness.php?form_cancel=YES" id="CANCEL">отменить фильтрицию</a>
+<a href="<?=$dir?>filter_form_madness.php?form_cancel=YES" id="CANCEL"><?=$MES["CANCEL_FILTRATION"]?></a>
 		<br>
 		<br>
 <div class="vet_sert_2">
 		<div class="info">
 			<center>
-			<label for="company_select">Выберите район</label>
+			<label for="company_select"><?=$MES["CHOOSE_REGION"]?></label>
 				<select id="company_select">
-					<option value="select_all_regions" <?if($regiontriger){echo "selected";}?>>Все районы</option>
+					<option value="select_all_regions" <?if($regiontriger){echo "selected";}?>><?=$MES["ALL_REGIONS"]?></option>
 					<?foreach ($arUniqueRegion as $key => $value) 
 					{?>
 						<option value="<?=$key;?>" <? if ($key==$_GET["region_name"]){echo "selected";}?>><?=$value;?></option>
 					<?}?>
 				</select></br>
 				<?if ($_GET["form_madness_period"]=='lastmonth'||strlen($_GET["form_madness_period"])<=0){echo '<strong>';}?>
-				<a href="<?=$dir?>filter_form_madness.php?form_madness_period=lastmonth&amp;region_name=<?=$_GET["region_name"]?>" id="lmh">за прошлый месяц </a>
+				<a href="<?=$dir?>filter_form_madness.php?form_madness_period=lastmonth&amp;region_name=<?=$_GET["region_name"]?>" id="lmh"><?=$MES["LAST_M"]?></a>
 				<?if ($_GET["form_madness_period"]=='lastmonth'||strlen($_GET["form_madness_period"])<=0){echo '</strong>';}?>
 				<?if ($_GET["form_madness_period"]=='lastqarter'){echo '<strong>';}?>
-				<a href="<?=$dir?>filter_form_madness.php?form_madness_period=lastqarter&amp;region_name=<?=$_GET["region_name"]?>" id="lkh">за прошлый квартал </a>
+				<a href="<?=$dir?>filter_form_madness.php?form_madness_period=lastqarter&amp;region_name=<?=$_GET["region_name"]?>" id="lkh"><?=$MES["LAST_Q"]?></a>
 				<?if ($_GET["form_madness_period"]=='lastqarter'){echo '</strong>';}?>
 				<?if ($_GET["form_madness_period"]=='lastyear'){echo '<strong>';}?>
-				<a href="<?=$dir?>filter_form_madness.php?form_madness_period=lastyear&amp;region_name=<?=$_GET["region_name"]?>" id="lyh">за прошлый год </a></br>
+				<a href="<?=$dir?>filter_form_madness.php?form_madness_period=lastyear&amp;region_name=<?=$_GET["region_name"]?>" id="lyh"><?=$MES["LAST_Y"]?></a></br>
 				<?if ($_GET["form_madness_period"]=='lastyear'){echo '</strong>';}?>
-				выбраный период</br>
-				от: <strong><?=date('d-m-Y',$begin);?></strong> до:<strong><?=date('d-m-Y',$end);?></strong>
+				<?=$MES["SEL_PERIOD"]?></br>
+				<?=$MES["FROM"]?><strong><?=date('d-m-Y',$begin);?></strong> <?=$MES["TO"]?><strong><?=date('d-m-Y',$end);?></strong>
 			</center>
 		</div>
 <div id="container_table">
 	<table class="tableclass">
 		<thead class="classtbody">
 		  <tr class="classtr"> 
-		    <th class="classth" rowspan="3">Наименование района</th>
-		    <th class="classth" rowspan="3">Количество населенных пунктов</th>
+		    <th class="classth" rowspan="3"><?=$MES["REGION_NAME"];?></th>
+		    <th class="classth" rowspan="3"><?=$MES["REGION_COUNT"];?></th>
 		    <?if (!$regiontriger)
 				{?>
-		    	<th class="classth" rowspan="3">Наименование компании</th>
+		    	<th class="classth" rowspan="3"><?=$MES["COMP_NAME"];?></th>
 		    <?}?>
-		    <th class="classth" colspan="3">Имеется животных</th>
-		    <th class="classth" colspan="3">Провакцинировано животных</th>
-		    <th class="classth" colspan="4">Приняты меры</th>
-		    <th class="classth" rowspan="3">Выделено денежных средств из местного бюджета, руб.</th>
-		    <th class="classth" colspan="3">Опубликовано информации в СМИ</th>
-		    <th class="classth" colspan="2">Проведено</th>
-		    <th class="classth" colspan="4">Госветинспекторсая работа</th>
+		    <th class="classth" colspan="3"><?=$MES["PETS_COUNT"]?></th>
+		    <th class="classth" colspan="3"><?=$MES["VACZ_PRTS"];?></th>
+		    <th class="classth" colspan="4"><?=$MES["MEASURES"];?></th>
+		    <th class="classth" rowspan="3"><?=$MES["FOUNDATION"];?></th>
+		    <th class="classth" colspan="3"><?=$MES["SMI"];?></th>
+		    <th class="classth" colspan="2"><?=$MES["PROVEDENO"];?></th>
+		    <th class="classth" colspan="4"><?=$MES["GOS_RABOTA"];?></th>
 		  </tr>
 		  <tr class="classtr">
-		    <td class="classth" class="classth" rowspan="2">Всего</td>
-		    <td class="classth" colspan="2">в том числе</td>
-		    <td class="classth" rowspan="2">Всего</td>
-		    <td class="classth" colspan="2">в том числе</td>
-		    <td class="classth" colspan="2">по отлову</td>
-		    <td class="classth" colspan="2">по отстрелу</td>
-		    <td class="classth" rowspan="2">По радио/ теле-видение</td>
-		    <td class="classth" rowspan="2">листо-вок,памяток</td>
-		    <td class="classth" rowspan="2">В печати</td>
-		    <td class="classth" rowspan="2">Совместных рейдов</td>
-		    <td class="classth" rowspan="2">бесед</td>
-		    <td class="classth" rowspan="2">составлено предписаний</td>
-		    <td class="classth" rowspan="2">составлено протоколов</td>
-		    <td class="classth" rowspan="2">оштрафовано лиц</td>
-		    <td class="classth" rowspan="2">на сумму  руб.</td>
+		    <td class="classth" class="classth" rowspan="2"><?=$MES["TOTAL"];?></td>
+		    <td class="classth" colspan="2"><?=$MES["V_TOM_CHISLE"];?></td>
+		    <td class="classth" rowspan="2"><?=$MES["TOTAL"];?></td>
+		    <td class="classth" colspan="2"><?=$MES["V_TOM_CHISLE"];?></td>
+		    <td class="classth" colspan="2"><?=$MES["PO_OTLOVU"];?></td>
+		    <td class="classth" colspan="2"><?=$MES["PO_OTSTRELU"];?></td>
+		    <td class="classth" rowspan="2"><?=$MES["RADIO_TV"];?></td>
+		    <td class="classth" rowspan="2"><?=$MES["LISTOVOK"];?></td>
+		    <td class="classth" rowspan="2"><?=$MES["IN_PRINT"];?></td>
+		    <td class="classth" rowspan="2"><?=$MES["REJDOV"];?></td>
+		    <td class="classth" rowspan="2"><?=$MES["BESED"];?></td>
+		    <td class="classth" rowspan="2"><?=$MES["PREDPISANIJ"];?></td>
+		    <td class="classth" rowspan="2"><?=$MES["PROTOKOLOV"];?></td>
+		    <td class="classth" rowspan="2"><?=$MES["OSHTRAF"];?></td>
+		    <td class="classth" rowspan="2"><?=$MES["NA_SUMMU"];?></td>
 		  </tr>
 		  <tr class="classtr">
-		    <td class="classth">Кошек</td>
-		    <td class="classth">Собак</td>
-		    <td class="classth">Кошек</td>
-		    <td class="classth">Собак</td>
-		    <td class="classth">Кошек</td>
-		    <td class="classth">Собак</td>
-		    <td class="classth">Кошек</td>
-		    <td class="classth">Собак</td>
+		    <td class="classth"><?=$MES["CATS"];?></td>
+		    <td class="classth"><?=$MES["DOGS"];?></td>
+		    <td class="classth"><?=$MES["CATS"];?></td>
+		    <td class="classth"><?=$MES["DOGS"];?></td>
+		    <td class="classth"><?=$MES["CATS"];?></td>
+		    <td class="classth"><?=$MES["DOGS"];?></td>
+		    <td class="classth"><?=$MES["CATS"];?></td>
+		    <td class="classth"><?=$MES["DOGS"];?></td>
 		  </tr>
 		</thead>
 		<tbody class="classtbody">
@@ -541,5 +679,5 @@ $arUniqueCompany=array_unique($arUniqueCompany);
 </div>
 </br>
 	<INPUT TYPE="button" VALUE=" Печать результата" ONCLICK="printtext()">
-	<INPUT TYPE="button" VALUE=" Експорт в CSV" onClick="window.location.href='/upload/formmadness.csv'">
+	<INPUT TYPE="button" VALUE=" Експорт в CSV" onClick="window.location.href='/upload/form_madness.csv'">
 <?require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin.php");?>
